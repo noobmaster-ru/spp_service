@@ -1,9 +1,13 @@
 # анализ данных
 import pandas as pd
+import numpy as np
 from typing import Dict
 from repositories.csv_repository import CSVRepository
-from core.constants import WB_CATEGORY_CSV, DF_FILTERED_PATH
+from core.constants import WB_CATEGORY_CSV, DF_FILTERED_PATH, SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_URL
 import os
+from datetime import datetime
+
+from services.google_sheets_saver import GoogleSheetSaver
 
 class DataAnalyzerService:
     def __init__(self, csv_repo: CSVRepository):
@@ -54,13 +58,67 @@ class DataAnalyzerService:
         # convert to numeric
         df_filtred["avg_price_rub"] = df_filtred["avg_price_rub"].astype(int)
         df_filtred["price_with_spp"] = df_filtred["price_with_spp"].astype(int)
+        df_filtred["nm_id"] = df_filtred["nm_id"].astype(int)
         df_filtred = df_filtred.reset_index(drop=True)
-        df_filtred["spp"] = round(1 - df_filtred["price_with_spp"] / df_filtred["avg_price_rub"], 2)
-        df_filtred = df_filtred.sort_values("category")
+        
+        
+        # считаем спп по часу и записываем в новый столбец
+        hour = datetime.now().strftime("%H")
+        new_col = f"spp{hour}"
+        # считаем новый столбец спп
+        df_filtred[new_col] = round(
+            1 - df_filtred["price_with_spp"] / df_filtred["avg_price_rub"], 2
+        )
 
-        # save
-        os.makedirs("data", exist_ok=True)
-        self.csv_repo.save(df_filtred, DF_FILTERED_PATH, index=False)
-        df_filtred.to_csv('df_filtered.csv', index=False)
-        print(f"✅ Анализ завершён, {len(df_filtred)} сохранено:", DF_FILTERED_PATH)
-        # print(df_filtred.head(5))
+
+        # save dataframe with f"spp{hour}""
+        if os.path.exists(DF_FILTERED_PATH):
+            df_old = pd.read_csv(DF_FILTERED_PATH)
+
+            # если столбец с таким именем уже есть → убираем его (будет перезаписан)
+            if new_col in df_old.columns:
+                df_old.drop(columns=[new_col], inplace=True)
+
+            df_old['nm_id'] = df_old['nm_id'].astype(int)
+            spp_cols = sorted([c for c in df_old.columns if c.startswith("spp")])
+            df_old[spp_cols] = df_old[spp_cols].astype(float)
+
+            # делаем outer merge только с нужными колонками
+            df_merged = df_old.merge(
+                df_filtred[["nm_id", "category", new_col]],
+                on="nm_id",
+                how="outer"
+            )
+
+            # если в merge появились дубликаты category → оставляем старое или новое
+            if "category_x" in df_merged.columns and "category_y" in df_merged.columns:
+                df_merged["category"] = df_merged["category_x"].combine_first(df_merged["category_y"])
+                df_merged.drop(["category_x", "category_y"], axis=1, inplace=True)
+
+            # сортируем по category
+            df_merged = df_merged.sort_values("category").reset_index(drop=True)
+
+
+            # порядок колонок: nm_id, category, потом все spp*
+            spp_cols = sorted([c for c in df_merged.columns if c.startswith("spp")])
+            df_merged = df_merged[["nm_id", "category"] + spp_cols]
+            
+            # сохраняем в csv и google sheets
+            self.csv_repo.save(df_merged, DF_FILTERED_PATH, index=False)
+            GoogleSheetSaver(SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_URL).write_data_to_google_sheet(df_merged)
+            
+            print(f"✅ Анализ завершён, час: {hour}, {len(df_merged)} строк добавлено в", DF_FILTERED_PATH)
+        else:
+            # сортируем по категории
+            df_filtred = df_filtred.sort_values("category").reset_index(drop=True)
+
+            # файла нет → создаём с нужными колонками 
+            df_save = df_filtred[["nm_id", "category", new_col]]
+
+
+            # сохраняем в csv и google sheets
+            self.csv_repo.save(df_save, DF_FILTERED_PATH, index=False)
+            GoogleSheetSaver(SERVICE_ACCOUNT_JSON, GOOGLE_SHEETS_URL).write_data_to_google_sheet(df_save)
+
+            print(f"✅ Анализ завершён, час {hour}, {len(df_save)} строк сохранено в", DF_FILTERED_PATH)
+        

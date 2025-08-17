@@ -6,7 +6,7 @@ from use_cases.analyze_data import AnalyzeDataUseCase
 from use_cases.find_spp_by_nm_id import find_spp_by_nm_id
 from core.constants import WB_TOKENS_CSV
 import argparse
-
+from datetime import datetime
 
 def load_tokens_from_csv(path: str):
     df = pd.read_csv(path)
@@ -14,7 +14,7 @@ def load_tokens_from_csv(path: str):
     return df.iloc[:, 1].tolist()
 
 
-async def run_parse(tokens):
+async def run_parse(tokens: list):
     usecase = ParseAndSaveUseCase(tokens)
     await usecase.execute()
 

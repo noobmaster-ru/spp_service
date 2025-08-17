@@ -21,8 +21,15 @@ analyze:
 find-spp:
 	python main.py find-spp
 
+# всё
 all:
 	python main.py parse
 	python main.py merge
 	python main.py analyze
 	python main.py find-spp
+
+# считать спп по часам и сохранять в df_filtered
+spp-hour:
+	python main.py parse
+	python main.py merge
+	python main.py analyze

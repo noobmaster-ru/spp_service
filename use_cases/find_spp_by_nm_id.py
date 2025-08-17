@@ -92,11 +92,11 @@ def find_spp_by_nm_id(nm_id: int):
         print("⚠️ Нет записей для категории:", category)
         return
 
-    result = filtered[["category", "avg_price_rub", "spp"]].copy()
+    result = filtered.copy()
     # индексы приведём к нулю
     result = result.reset_index(drop=True)
     # print(result)
 
     dict_from_df = result.groupby('category').apply(lambda x: x.to_dict('index'),include_groups = False).to_dict()
     json_repo.save(dict_from_df, DF_ANSWER_PATH)
-    print("✅ Saved to df_answer.csv")
+    print(f"✅ Saved to {DF_ANSWER_PATH}")
