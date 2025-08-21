@@ -40,6 +40,7 @@ class WBApiClient(IWBApiClient):
                     cards = data.get("cards", [])
                     for card in cards:
                         parsed_data_api_articles[card["nmID"]] = {
+                            "token": token,
                             "date": card["statistics"]["selectedPeriod"]["begin"][:10],
                             "nm_id": str(card["nmID"]),
                             "category": card["object"]["name"],

@@ -16,6 +16,7 @@ class DataAnalyzerService:
     def analyze_and_save(self, merged_data: Dict[str, Dict]):
         # build df
         columns_order = [
+            "token",
             "date",
             "nm_id",
             "category",
@@ -47,7 +48,7 @@ class DataAnalyzerService:
             print("⚠️ Ошибка чтения WB category csv:", e)
             df_category_wb = pd.DataFrame(columns=["category"])
 
-        df_category_our = pd.DataFrame(df_with_remains[["nm_id", "category", "avg_price_rub", "price_with_spp"]].copy())
+        df_category_our = pd.DataFrame(df_with_remains[["token","nm_id", "category", "avg_price_rub", "price_with_spp"]].copy())
         df_category_our = df_category_our.reset_index(drop=True)
 
         df_filtred = df_category_our[
@@ -99,9 +100,9 @@ class DataAnalyzerService:
             df_merged = df_merged.sort_values("category").reset_index(drop=True)
 
 
-            # порядок колонок: nm_id, category, потом все spp*
+            # порядок колонок: token, nm_id, category, потом все spp*
             spp_cols = sorted([c for c in df_merged.columns if c.startswith("spp")])
-            df_merged = df_merged[["nm_id", "category"] + spp_cols]
+            df_merged = df_merged[["token", "nm_id", "category"] + spp_cols]
             
             # сохраняем в csv и google sheets
             self.csv_repo.save(df_merged, DF_FILTERED_PATH, index=False)
@@ -113,7 +114,7 @@ class DataAnalyzerService:
             df_filtred = df_filtred.sort_values("category").reset_index(drop=True)
 
             # файла нет → создаём с нужными колонками 
-            df_save = df_filtred[["nm_id", "category", new_col]]
+            df_save = df_filtred[["token", "nm_id", "category", new_col]]
 
 
             # сохраняем в csv и google sheets
