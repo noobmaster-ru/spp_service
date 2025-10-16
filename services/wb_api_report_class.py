@@ -60,20 +60,18 @@ class WBApiReportByPeriodClass():
             if resp.status_code == 200:
                 backoff = 1.0
                 data = resp.json()
-                # структура: data["data"]["listGoods"] (см. документацию)
                 goods = data.get("data", {}).get("listGoods") or []
                 if not goods:
                     break
 
                 for g in goods:
                     nmID = g.get("nmID")
-                    # vendorCode = g.get("vendorCode")  # это артикул продавца
+
                     all_items.append(nmID)
                 offset += limit
-                # небольшой sleep чтобы не попасть в лимит
+                # sleep чтобы не попасть в лимит
                 time.sleep(0.15)
             elif resp.status_code == 429:
-                # слишком много запросов — exponential backoff
                 print("429 Too Many Requests — делаем backoff", backoff, "c")
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 30)
